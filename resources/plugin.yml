@@ -1,0 +1,18 @@
+﻿name: NiuNiu
+version: 1.14.0
+main: com.yulewqiong.niuniu.NiuNiu
+api-version: '1.21'
+depend: [Vault]
+softdepend: [PlayerTitle, PlayerMenu]
+commands:
+  niu:
+    description: 牛牛对战系统
+    usage: /niu [battle <玩家>|brush|buy|top|migrate]
+    aliases: [niuniu, cow, niuNiu]
+permissions:
+  niu.admin:
+    description: 牛牛管理员（强制打胶/重载/开赛季）
+    default: op
+  niu.bypass.cooldown:
+    description: 无视打胶冷却（打胶不进入冷却）
+    default: op

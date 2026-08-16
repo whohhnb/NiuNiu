@@ -1,0 +1,81 @@
+﻿settings:
+  # 体力上限
+  max-stamina: 100
+  # 每日初始体力
+  daily-stamina: 100
+  # 对战消耗体力
+  battle-cost: 5
+  # 打胶消耗体力
+  brush-cost: 5
+  # 打胶成长范围(cm)
+  brush-growth-min: 2
+  brush-growth-max: 5
+  # 打胶冷却（秒），期间不能打胶（对战不受影响）
+  brush-cooldown-seconds: 180
+  # 购买体力价格(金币) 与 数量
+  buy-price: 1000
+  buy-amount: 50
+  # 对战赢家成长范围(cm)
+  win-growth-min: 2
+  win-growth-max: 6
+  # 对战输家扣减范围(cm)
+  lose-loss-min: 6
+  lose-loss-max: 12
+  # 初始长度范围(cm) 与 最低长度
+  initial-length-min: 5
+  initial-length-max: 10
+  min-length: 5
+  # 每天购买体力次数上限
+  buy-limit-per-day: 5
+  # 低于该长度无法被挑战/无法对战（防沙包）
+  min-challenge-length: 10
+  # 战斗力 = 长度 × 倍数 + 基础值
+  cp-length-multiplier: 2.0
+  cp-base: 10
+  # 回合制对战：初始 HP = hp-base + 评级等级 × hp-per-rank
+  hp-base: 91
+  hp-per-rank: 20
+  # 怒气系统
+  rage-max: 100
+  rage-start: 60
+  rage-regen: 20
+  # 猛烈甩击（高伤害·高耗怒）
+  skill-tail-damage-base: 30
+  skill-tail-damage-percp: 0.03
+  skill-tail-cost: 50
+  # 暴力筹茬（中伤害·低耗怒）
+  skill-horn-damage-base: 15
+  skill-horn-damage-percp: 0.015
+  skill-horn-cost: 20
+  # 牛盾（完全格挡 + 恢复怒气）
+  skill-shield-rage: 45
+  # 回合选择超时(秒)，超时判负
+  battle-pick-timeout: 30
+  # 延迟批量保存间隔(秒)，减少磁盘写
+  save-interval-seconds: 30
+  # 赛季天数（2个月=60天，到期自动进入下一赛季并重置牛牛）
+  season-duration-days: 7
+
+# ===== MySQL 数据库配置（可选）=====
+# 启用后数据将存储在 MySQL 中，YAML 作为备份
+mysql:
+  # 是否启用 MySQL（true=启用，false=仅使用 YAML）
+  enabled: false
+  # 数据库地址
+  host: localhost
+  # 数据库端口
+  port: 3306
+  # 数据库名（需提前创建）
+  database: niuniu
+  # 用户名
+  username: root
+  # 密码
+  password: ''
+# 赛季结算 · PlayerTitle 称号联动
+settlement:
+  # PlayerTitle 称号权限（{season} 替换为赛季号）
+  title-name: '&6&l✦&e&lS{season}打胶大王&6&l✦'
+  # 授予称号的控制台命令（{player}、{permission} 占位符）
+  grant-command: 'plt player add {player} {title} 0'
+  # 称号显示名（公告用，可加装饰，需在 PlayerTitle 里配对应 title）
+  title-display: '&6&l✦&e&lS{season}打胶大王&6&l✦'
