@@ -108,7 +108,7 @@ public class NiuNiu extends JavaPlugin implements Listener {
     private boolean dirty;
     private BukkitTask saveTask;
     private BukkitTask refreshTask;
-    private final Map<UUID, Battle> battles = new HashMap<>();
+    private final Map<UUID, Battle> battles = new java.util.concurrent.ConcurrentHashMap<>();
     private final Map<UUID, Challenge> challenges = new HashMap<>();
     private final Set<UUID> challengeBusy = new HashSet<>();
 
@@ -195,7 +195,14 @@ public class NiuNiu extends JavaPlugin implements Listener {
                 }
                 String t = ChatColor.stripColor(pl.getOpenInventory().getTitle());
                 if (t != null && t.contains(mainTitle)) {
-                    renderMain(pl, pl.getOpenInventory().getTopInventory());
+                    ItemStack info = pl.getOpenInventory().getTopInventory().getItem(4);
+                    // 只在冷却状态变化时刷新信息卡
+                    if (info != null && info.hasItemMeta()) {
+                        String name = info.getItemMeta().getDisplayName();
+                        if (name != null && name.contains("牛牛")) {
+                            renderMain(pl, pl.getOpenInventory().getTopInventory());
+                        }
+                    }
                 }
             }
         }, 20L, 20L);
@@ -256,7 +263,7 @@ public class NiuNiu extends JavaPlugin implements Listener {
         skillShieldRage = c.getInt("settings.skill-shield-rage", 45);
         battlePickTimeout = Math.max(5, c.getInt("settings.battle-pick-timeout", 30));
         titleNameConf = c.getString("settlement.title-name", "S{season}打胶大王");
-        createCommand = c.getString("settlement.create-command", "plt title add activity {title} 0 0 true 牛牛赛季冠军称号");
+        // createCommand reserved for future use
         grantCommand = c.getString("settlement.grant-command", "plt player add {player} {title} 0");
         titleDisplay = c.getString("settlement.title-display", "&6&l✦ &e&lS{season} 打胶大王 &6&l✦");
     }
@@ -277,11 +284,12 @@ public class NiuNiu extends JavaPlugin implements Listener {
         if (data != null) {
             try {
                 data.save(dataFile);
-                            // 同步到 MySQL
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            // 同步到 MySQL
             if (useMysql && db != null && db.isEnabled()) {
                 syncToMysql();
-            }            } catch (IOException e) {
-                e.printStackTrace();
             }
         }
     }
@@ -304,7 +312,7 @@ public class NiuNiu extends JavaPlugin implements Listener {
     }
 
     private long getSeasonStarted() {
-        return data.getLong("season.started", System.currentTimeMillis());
+        return data.getLong("season.started", 0L);
     }
 
     private void advanceSeasonIfNeeded() {
@@ -326,10 +334,13 @@ public class NiuNiu extends JavaPlugin implements Listener {
                 data.set(b + ".seasonPeak", Math.round(len * 10.0) / 10.0);
                 data.set(b + ".wins", 0);
                 data.set(b + ".battles", 0);
+            data.set(b + ".buysToday", 0);
+            data.set(b + ".buyDate", "");
                 data.set(b + ".cooldown", 0L);
                 // 赛季更替重置当天体力购买限制
                 data.set(b + ".buysToday", 0);
                 data.set(b + ".buyDate", LocalDate.now().toString());
+                data.set(b + ".lastDate", LocalDate.now().toString());
             }
         }
         markDirty();
@@ -346,6 +357,13 @@ public class NiuNiu extends JavaPlugin implements Listener {
                 if (peak > topPeak) {
                     topPeak = peak;
                     topKey = key;
+                } else if (peak == topPeak && topPeak > 0) {
+                    // 平局：比较胜场数
+                    int wins1 = data.getInt("players." + key + ".wins", 0);
+                    int wins2 = data.getInt("players." + topKey + ".wins", 0);
+                    if (wins1 > wins2) {
+                        topKey = key;
+                    }
                 }
             }
         }
@@ -389,6 +407,7 @@ public class NiuNiu extends JavaPlugin implements Listener {
     private void updateSeasonPeak(Player p, double newLen) {
         if (newLen > getSeasonPeak(p)) {
             data.set(base(p) + ".seasonPeak", newLen);
+            markDirty();
         }
     }
 
@@ -419,7 +438,6 @@ public class NiuNiu extends JavaPlugin implements Listener {
     }
 
     private void ensure(Player p) {
-        advanceSeasonIfNeeded();
         String b = base(p);
         String today = LocalDate.now().toString();
         String last = data.getString(b + ".lastDate", "");
@@ -437,6 +455,8 @@ public class NiuNiu extends JavaPlugin implements Listener {
             data.set(b + ".cooldown", 0L);
             data.set(b + ".wins", 0);
             data.set(b + ".battles", 0);
+            data.set(b + ".buysToday", 0);
+            data.set(b + ".buyDate", "");
             markDirty();
             sendMsg(p, "cow-born", "length", fmtLen(getLength(p)));
         } else if (!data.contains(b + ".seasonPeak")) {
@@ -561,7 +581,9 @@ public class NiuNiu extends JavaPlugin implements Listener {
         double grow = brushGrowthMin + ThreadLocalRandom.current().nextInt(brushGrowthMax - brushGrowthMin + 1);
         double newLen = Math.round((old + grow) * 10.0) / 10.0;
         data.set(base(target) + ".length", newLen);
-        data.set(base(target) + ".cooldown", System.currentTimeMillis() + brushCooldown * 1000L);
+        if (!target.hasPermission("niu.bypass.cooldown")) {
+            data.set(base(target) + ".cooldown", System.currentTimeMillis() + brushCooldown * 1000L);
+        }
         updateSeasonPeak(target, newLen);
         markDirty();
         sendMsg(target, "brush-success", "old", fmtLen(old), "new", fmtLen(newLen), "grow", String.valueOf((int) grow), "cooldown", String.valueOf(brushCooldown));
@@ -1069,7 +1091,7 @@ public class NiuNiu extends JavaPlugin implements Listener {
             } catch (Throwable ignored) {
             }
         }
-        p.performCommand("cd");
+        // Fallback: close inventory only, no unsafe command
     }
 
     private void renderMain(Player p, Inventory inv) {
@@ -1222,7 +1244,7 @@ public class NiuNiu extends JavaPlugin implements Listener {
             for (String key : data.getConfigurationSection("players").getKeys(false)) {
                 double peak = data.getDouble("players." + key + ".seasonPeak", 0);
                 if (peak <= 0) {
-                    peak = data.getDouble("players." + key + ".length", 0);
+                    continue; // 跳过无数据/零长度玩家
                 }
                 peaks.put(key, peak);
             }
@@ -1451,7 +1473,7 @@ public class NiuNiu extends JavaPlugin implements Listener {
         ItemStack it = new ItemStack(Material.PLAYER_HEAD, 1);
         try {
             PlayerProfile profile = Bukkit.createProfile(UUID.fromString(uuid));
-            it = new ItemStack(Material.PLAYER_HEAD, 1);
+            // createProfile already created, reuse it
             SkullMeta sm = (SkullMeta) it.getItemMeta();
             sm.setPlayerProfile(profile);
             it.setItemMeta(sm);
@@ -1571,6 +1593,17 @@ public class NiuNiu extends JavaPlugin implements Listener {
                 loadConfig();
                 loadData();
                 loadLang();
+                if (useMysql && db != null) { db.close(); }
+                useMysql = getConfig().getBoolean("mysql.enabled", false);
+                if (useMysql) {
+                    mysqlHost = getConfig().getString("mysql.host", "localhost");
+                    mysqlPort = getConfig().getInt("mysql.port", 3306);
+                    mysqlDatabase = getConfig().getString("mysql.database", "niuniu");
+                    mysqlUsername = getConfig().getString("mysql.username", "root");
+                    mysqlPassword = getConfig().getString("mysql.password", "");
+                    db = new DatabaseManager(this);
+                    if (!db.connect(mysqlHost, mysqlPort, mysqlDatabase, mysqlUsername, mysqlPassword)) { useMysql = false; }
+                }
                 sender.sendMessage(color(prefix() + t("reload")));
                 return true;
             }
@@ -1655,6 +1688,24 @@ public class NiuNiu extends JavaPlugin implements Listener {
                     loadConfig();
                     loadData();
                     loadLang();
+                    // 重新连接 MySQL
+                    if (useMysql && db != null) {
+                        db.close();
+                    }
+                    useMysql = getConfig().getBoolean("mysql.enabled", false);
+                    if (useMysql) {
+                        mysqlHost = getConfig().getString("mysql.host", "localhost");
+                        mysqlPort = getConfig().getInt("mysql.port", 3306);
+                        mysqlDatabase = getConfig().getString("mysql.database", "niuniu");
+                        mysqlUsername = getConfig().getString("mysql.username", "root");
+                        mysqlPassword = getConfig().getString("mysql.password", "");
+                        db = new DatabaseManager(this);
+                        if (db.connect(mysqlHost, mysqlPort, mysqlDatabase, mysqlUsername, mysqlPassword)) {
+                            loadFromMysql();
+                        } else {
+                            useMysql = false;
+                        }
+                    }
                     sendMsg(p, "reload");
                 } else {
                     sendMsg(p, "no-permission");
