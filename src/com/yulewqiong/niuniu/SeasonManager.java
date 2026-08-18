@@ -51,6 +51,7 @@ public class SeasonManager {
                 dataMgr.getData().set(b + ".seasonPeak", Math.round(len * 10.0) / 10.0);
                 dataMgr.getData().set(b + ".wins", 0);
                 dataMgr.getData().set(b + ".battles", 0);
+                dataMgr.getData().set(b + ".stamina", config.dailyStamina);
                 dataMgr.getData().set(b + ".cooldown", 0L);
                 dataMgr.getData().set(b + ".buysToday", 0);
                 dataMgr.getData().set(b + ".buyDate", LocalDate.now().toString());
