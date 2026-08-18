@@ -13,22 +13,32 @@ public class DatabaseManager {
     private HikariDataSource dataSource;
     private boolean enabled = false;
 
+    private String tablePlayers;
+    private String tableSeason;
+
     public DatabaseManager(NiuNiu plugin) {
         this.plugin = plugin;
     }
 
-    public boolean connect(String host, int port, String database, String username, String password) {
+    public boolean connect(String host, int port, String database, String username, String password,
+                           String tablePrefix, int poolMaxSize, int poolMinIdle) {
+        this.tablePlayers = tablePrefix + "players";
+        this.tableSeason = tablePrefix + "season";
+
         HikariConfig config = new HikariConfig();
         config.setJdbcUrl("jdbc:mysql://" + host + ":" + port + "/" + database
-                + "?useSSL=false&allowPublicKeyRetrieval=true&autoReconnect=true&serverTimezone=Asia/Shanghai");
+                + "?useSSL=false&allowPublicKeyRetrieval=true&autoReconnect=true&serverTimezone=Asia/Shanghai"
+                + "&cachePrepStmts=true&prepStmtCacheSize=250&prepStmtCacheSqlLimit=2048");
         config.setUsername(username);
         config.setPassword(password);
-        config.setMaximumPoolSize(5);
-        config.setMinimumIdle(1);
+        config.setMaximumPoolSize(poolMaxSize);
+        config.setMinimumIdle(poolMinIdle);
         config.setConnectionTimeout(5000);
         config.setIdleTimeout(300000);
         config.setMaxLifetime(600000);
         config.setPoolName("NiuNiu-Pool");
+        // 连接验证，防止连接超时断开
+        config.setConnectionTestQuery("SELECT 1");
 
         try {
             dataSource = new HikariDataSource(config);
@@ -36,7 +46,9 @@ public class DatabaseManager {
                 createTables(conn);
             }
             enabled = true;
-            plugin.getLogger().info("MySQL 数据库连接成功！(" + host + ":" + port + "/" + database + ")");
+            plugin.getLogger().info("MySQL 连接成功！(" + host + ":" + port + "/" + database
+                    + ", 前缀=" + (tablePrefix.isEmpty() ? "(无)" : tablePrefix)
+                    + ", 池=" + poolMaxSize + "/" + poolMinIdle + ")");
             return true;
         } catch (Exception e) {
             plugin.getLogger().log(Level.WARNING, "MySQL 连接失败: " + e.getMessage());
@@ -56,7 +68,7 @@ public class DatabaseManager {
     private void createTables(Connection conn) throws SQLException {
         try (Statement stmt = conn.createStatement()) {
             stmt.executeUpdate(
-                "CREATE TABLE IF NOT EXISTS niuniu_players (" +
+                "CREATE TABLE IF NOT EXISTS " + tablePlayers + " (" +
                 "  uuid VARCHAR(36) NOT NULL PRIMARY KEY," +
                 "  player_name VARCHAR(32) DEFAULT ''," +
                 "  length DOUBLE DEFAULT 0," +
@@ -67,16 +79,17 @@ public class DatabaseManager {
                 "  wins INT DEFAULT 0," +
                 "  battles INT DEFAULT 0," +
                 "  buy_date VARCHAR(12) DEFAULT ''," +
-                "  buys_today INT DEFAULT 0" +
+                "  buys_today INT DEFAULT 0," +
+                "  INDEX idx_player_name (player_name)" +
                 ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
             );
             stmt.executeUpdate(
-                "CREATE TABLE IF NOT EXISTS niuniu_season (" +
+                "CREATE TABLE IF NOT EXISTS " + tableSeason + " (" +
                 "  season_key VARCHAR(32) NOT NULL PRIMARY KEY," +
                 "  season_value TEXT" +
                 ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
             );
-            plugin.getLogger().info("数据库表已就绪。");
+            plugin.getLogger().info("数据库表已就绪（" + tablePlayers + " / " + tableSeason + "）。");
         }
     }
 
@@ -87,7 +100,7 @@ public class DatabaseManager {
         try (Connection conn = dataSource.getConnection();
              PreparedStatement ps = conn.prepareStatement(
                  "SELECT player_name, length, season_peak, stamina, last_date, cooldown, " +
-                 "wins, battles, buy_date, buys_today FROM niuniu_players WHERE uuid = ?")) {
+                 "wins, battles, buy_date, buys_today FROM " + tablePlayers + " WHERE uuid = ?")) {
             ps.setString(1, uuid);
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
@@ -116,7 +129,7 @@ public class DatabaseManager {
         try (Connection conn = dataSource.getConnection();
              PreparedStatement ps = conn.prepareStatement(
                  "SELECT uuid, player_name, length, season_peak, stamina, last_date, cooldown, " +
-                 "wins, battles, buy_date, buys_today FROM niuniu_players");
+                 "wins, battles, buy_date, buys_today FROM " + tablePlayers);
              ResultSet rs = ps.executeQuery()) {
             while (rs.next()) {
                 Map<String, Object> data = new HashMap<>();
@@ -139,6 +152,10 @@ public class DatabaseManager {
         return all;
     }
 
+    /**
+     * 使用 INSERT ... ON DUPLICATE KEY UPDATE 代替 REPLACE INTO，
+     * 避免 DELETE + INSERT 带来的主键重建和自增 ID 浪费。
+     */
     public void savePlayer(String uuid, String playerName, double length, double seasonPeak,
                            int stamina, String lastDate, long cooldown, int wins, int battles,
                            String buyDate, int buysToday) {
@@ -146,9 +163,15 @@ public class DatabaseManager {
 
         try (Connection conn = dataSource.getConnection();
              PreparedStatement ps = conn.prepareStatement(
-                 "REPLACE INTO niuniu_players (uuid, player_name, length, season_peak, stamina, " +
+                 "INSERT INTO " + tablePlayers + " (uuid, player_name, length, season_peak, stamina, " +
                  "last_date, cooldown, wins, battles, buy_date, buys_today) " +
-                 "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")) {
+                 "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) " +
+                 "ON DUPLICATE KEY UPDATE " +
+                 "player_name = VALUES(player_name), length = VALUES(length), " +
+                 "season_peak = VALUES(season_peak), stamina = VALUES(stamina), " +
+                 "last_date = VALUES(last_date), cooldown = VALUES(cooldown), " +
+                 "wins = VALUES(wins), battles = VALUES(battles), " +
+                 "buy_date = VALUES(buy_date), buys_today = VALUES(buys_today)")) {
             ps.setString(1, uuid);
             ps.setString(2, playerName != null ? playerName : "");
             ps.setDouble(3, length);
@@ -172,7 +195,7 @@ public class DatabaseManager {
 
         try (Connection conn = dataSource.getConnection();
              Statement stmt = conn.createStatement();
-             ResultSet rs = stmt.executeQuery("SELECT season_key, season_value FROM niuniu_season")) {
+             ResultSet rs = stmt.executeQuery("SELECT season_key, season_value FROM " + tableSeason)) {
             while (rs.next()) {
                 data.put(rs.getString("season_key"), rs.getString("season_value"));
             }
@@ -187,7 +210,8 @@ public class DatabaseManager {
 
         try (Connection conn = dataSource.getConnection();
              PreparedStatement ps = conn.prepareStatement(
-                 "REPLACE INTO niuniu_season (season_key, season_value) VALUES (?, ?)")) {
+                 "INSERT INTO " + tableSeason + " (season_key, season_value) VALUES (?, ?) " +
+                 "ON DUPLICATE KEY UPDATE season_value = VALUES(season_value)")) {
             ps.setString(1, key);
             ps.setString(2, value);
             ps.executeUpdate();
@@ -204,9 +228,15 @@ public class DatabaseManager {
             conn.setAutoCommit(false);
 
             try (PreparedStatement ps = conn.prepareStatement(
-                     "REPLACE INTO niuniu_players (uuid, player_name, length, season_peak, stamina, " +
+                     "INSERT INTO " + tablePlayers + " (uuid, player_name, length, season_peak, stamina, " +
                      "last_date, cooldown, wins, battles, buy_date, buys_today) " +
-                     "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")) {
+                     "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) " +
+                     "ON DUPLICATE KEY UPDATE " +
+                     "player_name = VALUES(player_name), length = VALUES(length), " +
+                     "season_peak = VALUES(season_peak), stamina = VALUES(stamina), " +
+                     "last_date = VALUES(last_date), cooldown = VALUES(cooldown), " +
+                     "wins = VALUES(wins), battles = VALUES(battles), " +
+                     "buy_date = VALUES(buy_date), buys_today = VALUES(buys_today)")) {
                 for (Map.Entry<String, Map<String, Object>> entry : yamlPlayers.entrySet()) {
                     String uuid = entry.getKey();
                     Map<String, Object> d = entry.getValue();
@@ -228,7 +258,8 @@ public class DatabaseManager {
             }
 
             try (PreparedStatement ps = conn.prepareStatement(
-                     "REPLACE INTO niuniu_season (season_key, season_value) VALUES (?, ?)")) {
+                     "INSERT INTO " + tableSeason + " (season_key, season_value) VALUES (?, ?) " +
+                     "ON DUPLICATE KEY UPDATE season_value = VALUES(season_value)")) {
                 for (Map.Entry<String, String> entry : yamlSeason.entrySet()) {
                     ps.setString(1, entry.getKey());
                     ps.setString(2, entry.getValue());

@@ -156,7 +156,8 @@ public class CommandHandler implements TabExecutor {
             String mysqlPassword = plugin.getConfig().getString("mysql.password", "");
             DatabaseManager newDb = new DatabaseManager(plugin);
             plugin.setDatabaseManager(newDb);
-            if (newDb.connect(mysqlHost, mysqlPort, mysqlDatabase, mysqlUsername, mysqlPassword)) {
+            if (newDb.connect(mysqlHost, mysqlPort, mysqlDatabase, mysqlUsername, mysqlPassword,
+                    config.mysqlTablePrefix, config.mysqlPoolMaxSize, config.mysqlPoolMinIdle)) {
                 dataMgr.loadFromMysql(newDb);
             } else {
                 plugin.setUseMysql(false);

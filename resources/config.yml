@@ -1,4 +1,4 @@
-﻿settings:
+settings:
   # 体力上限
   max-stamina: 100
   # 每日初始体力
@@ -71,6 +71,12 @@ mysql:
   username: root
   # 密码
   password: ''
+  # 表名前缀（多服共用同一数据库时使用，如 "survival_" → survival_players / survival_season）
+  table-prefix: ''
+  # 连接池最大连接数
+  pool-max-size: 5
+  # 连接池最小空闲连接数
+  pool-min-idle: 1
 # 赛季结算 · PlayerTitle 称号联动
 settlement:
   # PlayerTitle 称号权限（{season} 替换为赛季号）

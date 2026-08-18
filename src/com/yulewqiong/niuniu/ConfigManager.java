@@ -70,6 +70,11 @@ public class ConfigManager {
     String grantCommand;
     String titleDisplay;
 
+    // ===== MySQL =====
+    String mysqlTablePrefix;
+    int mysqlPoolMaxSize;
+    int mysqlPoolMinIdle;
+
     public ConfigManager(NiuNiu plugin) {
         this.plugin = plugin;
     }
@@ -115,5 +120,10 @@ public class ConfigManager {
         createCommand = c.getString("settlement.create-command", "");
         grantCommand = c.getString("settlement.grant-command", "plt player add {player} {title} 0");
         titleDisplay = c.getString("settlement.title-display", "&6&l✦ &e&lS{season} 打胶大王 &6&l✦");
+
+        // MySQL
+        mysqlTablePrefix = c.getString("mysql.table-prefix", "");
+        mysqlPoolMaxSize = Math.max(1, c.getInt("mysql.pool-max-size", 5));
+        mysqlPoolMinIdle = Math.max(0, Math.min(mysqlPoolMaxSize, c.getInt("mysql.pool-min-idle", 1)));
     }
 }

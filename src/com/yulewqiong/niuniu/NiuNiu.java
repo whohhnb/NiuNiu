@@ -80,7 +80,8 @@ public class NiuNiu extends JavaPlugin {
             String mysqlUsername = getConfig().getString("mysql.username", "root");
             String mysqlPassword = getConfig().getString("mysql.password", "");
             databaseManager = new DatabaseManager(this);
-            if (databaseManager.connect(mysqlHost, mysqlPort, mysqlDatabase, mysqlUsername, mysqlPassword)) {
+            if (databaseManager.connect(mysqlHost, mysqlPort, mysqlDatabase, mysqlUsername, mysqlPassword,
+                    configManager.mysqlTablePrefix, configManager.mysqlPoolMaxSize, configManager.mysqlPoolMinIdle)) {
                 playerDataManager.loadFromMysql(databaseManager);
                 getLogger().info("已从 MySQL 加载数据，共 " + playerDataManager.countPlayers() + " 名玩家。");
             } else {
