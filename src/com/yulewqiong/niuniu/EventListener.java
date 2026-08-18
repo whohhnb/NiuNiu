@@ -36,7 +36,7 @@ public class EventListener implements Listener {
 
     @EventHandler
     public void onJoin(PlayerJoinEvent e) {
-        dataMgr.ensure(e.getPlayer());
+        dataMgr.ensureDaily(e.getPlayer());
     }
 
     @EventHandler

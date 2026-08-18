@@ -72,7 +72,7 @@ mysql:
   # 密码
   password: ''
   # 表名前缀（多服共用同一数据库时使用，如 "survival_" → survival_players / survival_season）
-  table-prefix: ''
+  table-prefix: 'niuniu_'
   # 连接池最大连接数
   pool-max-size: 5
   # 连接池最小空闲连接数

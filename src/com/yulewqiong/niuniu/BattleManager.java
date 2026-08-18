@@ -145,8 +145,16 @@ public class BattleManager {
     // ===== 挑战流程 =====
 
     public void doBattle(Player a, Player b) {
-        dataMgr.ensure(a);
-        dataMgr.ensure(b);
+        if (!dataMgr.hasCow(a)) {
+            lang.sendMsg(a, "no-cow");
+            return;
+        }
+        if (!dataMgr.hasCow(b)) {
+            lang.sendMsg(a, "no-cow-target", "target", b.getName());
+            return;
+        }
+        dataMgr.ensureDaily(a);
+        dataMgr.ensureDaily(b);
         if (a.getUniqueId().equals(b.getUniqueId())) {
             lang.sendMsg(a, "battle-self");
             return;

@@ -41,9 +41,34 @@ public class GuiManager {
     // ===== 主菜单 =====
 
     public void openMain(Player p) {
-        dataMgr.ensure(p);
+        if (!dataMgr.hasCow(p)) {
+            openNoCow(p);
+            return;
+        }
+        dataMgr.ensureDaily(p);
         Inventory inv = Bukkit.createInventory(null, 27, LangManager.color("&6&l牛牛对战系统"));
         renderMain(p, inv);
+        p.openInventory(inv);
+    }
+
+    /** 无牛牛时的引导界面 */
+    private void openNoCow(Player p) {
+        Inventory inv = Bukkit.createInventory(null, 27, LangManager.color("&6&l牛牛对战系统"));
+        for (int i = 0; i < 27; i++) {
+            if (i == 13) continue;
+            inv.setItem(i, glass());
+        }
+        List<String> nl = new ArrayList<>();
+        nl.add("");
+        nl.add(LangManager.color("&f你还没有牛牛！"));
+        nl.add(LangManager.color("&7打一次胶来激活你的牛牛"));
+        nl.add("");
+        nl.add(LangManager.color("&7打胶规则："));
+        nl.add(LangManager.color("&7▶ 无需消耗体力"));
+        nl.add(LangManager.color("&7▶ 牛牛随机出生 &a" + dataMgr.fmtLen(config.initLenMin) + "~" + dataMgr.fmtLen(config.initLenMax) + "cm"));
+        nl.add("");
+        nl.add(LangManager.color("&7左键激活牛牛"));
+        inv.setItem(13, btn(Material.END_ROD, "&b&l打胶激活牛牛", "brush", nl));
         p.openInventory(inv);
     }
 
@@ -123,7 +148,11 @@ public class GuiManager {
     // ===== 选人界面 =====
 
     public void openBattle(Player p) {
-        dataMgr.ensure(p);
+        if (!dataMgr.hasCow(p)) {
+            lang.sendMsg(p, "no-cow");
+            return;
+        }
+        dataMgr.ensureDaily(p);
         List<Player> targets = new ArrayList<>();
         for (Player t : Bukkit.getOnlinePlayers()) {
             if (!t.getUniqueId().equals(p.getUniqueId())) targets.add(t);
@@ -326,7 +355,9 @@ public class GuiManager {
     public void openMainMenu(Player p) {
         if (Bukkit.getPluginManager().getPlugin("PlayerMenu") != null) {
             try {
-                cn.handyplus.menu.util.MenuUtil.asyncOpenGui(p, "menu", null);
+                Class<?> menuUtil = Class.forName("cn.handyplus.menu.util.MenuUtil");
+                menuUtil.getMethod("asyncOpenGui", Player.class, String.class, Object.class)
+                        .invoke(null, p, "menu", null);
                 return;
             } catch (Throwable ignored) {
             }

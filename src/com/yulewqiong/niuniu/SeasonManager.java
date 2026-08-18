@@ -60,6 +60,12 @@ public class SeasonManager {
         }
         dataMgr.markDirty();
         lang.broadcast("season-started", "season", String.valueOf(next));
+
+        // 清空 MySQL 表
+        DatabaseManager db = plugin.getDatabaseManager();
+        if (plugin.isUseMysql() && db != null && db.isEnabled()) {
+            db.clearAll();
+        }
     }
 
     private void settleSeason() {

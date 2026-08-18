@@ -1,4 +1,4 @@
-﻿# ===== NiuNiu 语言 / 文案配置 =====
+# ===== NiuNiu 语言 / 文案配置 =====
 # 修改后执行 /niu reload 生效
 prefix: '&7[&6牛牛&7] &r'
 
@@ -67,6 +67,9 @@ messages:
   season-settle-champion: '&6&l🏆 &e{player} &7拿下 &eS{season} &7赛季冠军！获得永久称号「{title}」'
 
   migrate-no-db: '&cMySQL 数据库未连接！请先在 config.yml 中配置 mysql.enabled: true 并重启服务器。'
+
+  no-cow: '&c你还没有牛牛！&7输入 &e/niu brush &7打一次胶来激活你的牛牛'
+  no-cow-target: '&c对方还没有牛牛！'
 
 # ----- GUI -----
 gui:

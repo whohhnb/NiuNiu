@@ -1,7 +1,6 @@
 package com.yulewqiong.niuniu;
 
 import net.milkbowl.vault.economy.Economy;
-import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.Sound;
 import org.bukkit.configuration.file.FileConfiguration;
@@ -64,7 +63,6 @@ public class PlayerDataManager {
             } catch (IOException e) {
                 e.printStackTrace();
             }
-            // 同步到 MySQL
             DatabaseManager db = plugin.getDatabaseManager();
             if (plugin.isUseMysql() && db != null && db.isEnabled()) {
                 syncToMysql(db);
@@ -94,8 +92,10 @@ public class PlayerDataManager {
         return "players." + p.getUniqueId();
     }
 
-    public void ensure(Player p) {
+    /** 仅执行每日体力重置，不创建牛牛 */
+    public void ensureDaily(Player p) {
         String b = base(p);
+        if (!data.contains(b)) return; // 无数据，跳过
         String today = LocalDate.now().toString();
         String last = data.getString(b + ".lastDate", "");
         if (!last.equals(today)) {
@@ -103,23 +103,32 @@ public class PlayerDataManager {
             data.set(b + ".stamina", config.dailyStamina);
             markDirty();
         }
-        if (!data.contains(b + ".length")) {
-            double len = config.initLenMin + ThreadLocalRandom.current().nextDouble() * (config.initLenMax - config.initLenMin);
-            data.set(b + ".length", Math.round(len * 10.0) / 10.0);
-            data.set(b + ".seasonPeak", Math.round(len * 10.0) / 10.0);
-            data.set(b + ".stamina", config.dailyStamina);
-            data.set(b + ".lastDate", today);
-            data.set(b + ".cooldown", 0L);
-            data.set(b + ".wins", 0);
-            data.set(b + ".battles", 0);
-            data.set(b + ".buysToday", 0);
-            data.set(b + ".buyDate", "");
-            markDirty();
-            lang.sendMsg(p, "cow-born", "length", fmtLen(getLength(p)));
-        } else if (!data.contains(b + ".seasonPeak")) {
-            data.set(b + ".seasonPeak", getLength(p));
-            markDirty();
-        }
+    }
+
+    /** 玩家是否已拥有牛牛 */
+    public boolean hasCow(Player p) {
+        return data.contains(base(p) + ".length");
+    }
+
+    /** 首次打胶激活牛牛 */
+    private void initCow(Player p) {
+        String b = base(p);
+        String today = LocalDate.now().toString();
+        double len = config.initLenMin + ThreadLocalRandom.current().nextDouble() * (config.initLenMax - config.initLenMin);
+        double rounded = Math.round(len * 10.0) / 10.0;
+        data.set(b + ".length", rounded);
+        data.set(b + ".seasonPeak", rounded);
+        data.set(b + ".stamina", config.dailyStamina);
+        data.set(b + ".lastDate", today);
+        data.set(b + ".cooldown", 0L);
+        data.set(b + ".wins", 0);
+        data.set(b + ".battles", 0);
+        data.set(b + ".buysToday", 0);
+        data.set(b + ".buyDate", "");
+        markDirty();
+        lang.sendMsg(p, "cow-born", "length", fmtLen(rounded));
+        p.playSound(p.getLocation(), Sound.ENTITY_SHEEP_SHEAR, 1, 1.2f);
+        p.playSound(p.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 1, 1.4f);
     }
 
     public double getLength(Player p) {
@@ -208,7 +217,11 @@ public class PlayerDataManager {
     // ===== 打胶 =====
 
     public void doBrush(Player p) {
-        ensure(p);
+        if (!hasCow(p)) {
+            initCow(p);
+            return;
+        }
+        ensureDaily(p);
         boolean bypassCd = p.hasPermission("niu.bypass.cooldown");
         if (!bypassCd && inCooldown(p)) {
             lang.sendMsg(p, "brush-cooldown", "seconds", String.valueOf(statusSec(p)));
@@ -242,7 +255,11 @@ public class PlayerDataManager {
     }
 
     public void forceBrush(Player target) {
-        ensure(target);
+        if (!hasCow(target)) {
+            initCow(target);
+        } else {
+            ensureDaily(target);
+        }
         double old = getLength(target);
         double grow = config.brushGrowthMin + ThreadLocalRandom.current().nextInt(config.brushGrowthMax - config.brushGrowthMin + 1);
         double newLen = Math.round((old + grow) * 10.0) / 10.0;
@@ -260,7 +277,11 @@ public class PlayerDataManager {
     // ===== 购买体力 =====
 
     public void doBuy(Player p) {
-        ensure(p);
+        if (!hasCow(p)) {
+            lang.sendMsg(p, "no-cow");
+            return;
+        }
+        ensureDaily(p);
         int s = getStamina(p);
         if (s >= config.maxStamina) {
             lang.sendMsg(p, "buy-full");
@@ -329,6 +350,8 @@ public class PlayerDataManager {
         if (data.contains("players")) {
             for (String key : data.getConfigurationSection("players").getKeys(false)) {
                 String b = "players." + key;
+                // 只同步有牛牛的玩家，未激活的不写入数据库
+                if (!data.contains(b + ".length")) continue;
                 db.savePlayer(
                     key,
                     data.getString(b + ".name", ""),
@@ -351,6 +374,8 @@ public class PlayerDataManager {
         if (data.contains("players")) {
             for (String key : data.getConfigurationSection("players").getKeys(false)) {
                 String b = "players." + key;
+                // 只迁移有牛牛的玩家
+                if (!data.contains(b + ".length")) continue;
                 Map<String, Object> d = new LinkedHashMap<>();
                 d.put("playerName", data.getString(b + ".name", ""));
                 d.put("length", data.getDouble(b + ".length", 0));

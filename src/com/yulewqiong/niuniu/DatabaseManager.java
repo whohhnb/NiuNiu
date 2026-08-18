@@ -284,6 +284,19 @@ public class DatabaseManager {
         }
     }
 
+    /** 清空所有数据表（赛季更替时调用） */
+    public void clearAll() {
+        if (!isEnabled()) return;
+        try (Connection conn = dataSource.getConnection();
+             Statement stmt = conn.createStatement()) {
+            stmt.executeUpdate("DELETE FROM " + tablePlayers);
+            stmt.executeUpdate("DELETE FROM " + tableSeason);
+            plugin.getLogger().info("数据库表已清空（" + tablePlayers + " / " + tableSeason + "）。");
+        } catch (SQLException e) {
+            plugin.getLogger().log(Level.WARNING, "清空数据库表失败: " + e.getMessage());
+        }
+    }
+
     private String safeString(Object obj, String def) {
         return obj != null ? obj.toString() : def;
     }
