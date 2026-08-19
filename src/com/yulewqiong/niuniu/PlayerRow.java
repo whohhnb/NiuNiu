@@ -6,7 +6,6 @@ package com.yulewqiong.niuniu;
 public class PlayerRow {
 
     public String uuid;
-    public String name = "";
     public double length = 0;
     public double seasonPeak = 0;
     public int stamina = 0;

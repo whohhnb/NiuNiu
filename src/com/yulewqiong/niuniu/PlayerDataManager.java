@@ -61,7 +61,6 @@ public class PlayerDataManager {
         return cache.computeIfAbsent(uuid, k -> {
             PlayerRow r = new PlayerRow();
             r.uuid = uuid;
-            r.name = p.getName();
             return r;
         });
     }
@@ -212,7 +211,6 @@ public class PlayerDataManager {
         String today = LocalDate.now().toString();
         double len = config.initLenMin + ThreadLocalRandom.current().nextDouble() * (config.initLenMax - config.initLenMin);
         double rounded = Math.round(len * 10.0) / 10.0;
-        r.name = p.getName();
         r.length = rounded;
         r.seasonPeak = rounded;
         r.stamina = config.dailyStamina;

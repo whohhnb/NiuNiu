@@ -104,7 +104,6 @@ public class DatabaseManager {
             stmt.executeUpdate(
                 "CREATE TABLE IF NOT EXISTS " + tablePlayers + " (" +
                 "  uuid VARCHAR(36) NOT NULL PRIMARY KEY," +
-                "  player_name VARCHAR(32) DEFAULT ''," +
                 "  length DOUBLE DEFAULT 0," +
                 "  season_peak DOUBLE DEFAULT 0," +
                 "  stamina INT DEFAULT 0," +
@@ -130,7 +129,7 @@ public class DatabaseManager {
 
     public PlayerRow loadPlayer(String uuid) {
         if (!isEnabled()) return null;
-        String sql = "SELECT player_name, length, season_peak, stamina, last_date, cooldown, wins, battles, buy_date, buys_today " +
+        String sql = "SELECT length, season_peak, stamina, last_date, cooldown, wins, battles, buy_date, buys_today " +
                 "FROM " + tablePlayers + " WHERE uuid = ?";
         try (Connection conn = dataSource.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -149,7 +148,7 @@ public class DatabaseManager {
     public Map<String, PlayerRow> loadAllPlayers() {
         Map<String, PlayerRow> all = new LinkedHashMap<>();
         if (!isEnabled()) return all;
-        String sql = "SELECT uuid, player_name, length, season_peak, stamina, last_date, cooldown, wins, battles, buy_date, buys_today " +
+        String sql = "SELECT uuid, length, season_peak, stamina, last_date, cooldown, wins, battles, buy_date, buys_today " +
                 "FROM " + tablePlayers;
         try (Connection conn = dataSource.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql);
@@ -167,7 +166,6 @@ public class DatabaseManager {
     private PlayerRow readRow(String uuid, ResultSet rs) throws SQLException {
         PlayerRow r = new PlayerRow();
         r.uuid = uuid;
-        r.name = rs.getString("player_name");
         r.length = rs.getDouble("length");
         r.seasonPeak = rs.getDouble("season_peak");
         r.stamina = rs.getInt("stamina");
@@ -183,17 +181,17 @@ public class DatabaseManager {
     private String upsertPlayersSql() {
         if (backend == Backend.MYSQL) {
             return "INSERT INTO " + tablePlayers +
-                    " (uuid, player_name, length, season_peak, stamina, last_date, cooldown, wins, battles, buy_date, buys_today) " +
-                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) " +
-                    "ON DUPLICATE KEY UPDATE player_name=VALUES(player_name), length=VALUES(length), " +
+                    " (uuid, length, season_peak, stamina, last_date, cooldown, wins, battles, buy_date, buys_today) " +
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) " +
+                    "ON DUPLICATE KEY UPDATE length=VALUES(length), " +
                     "season_peak=VALUES(season_peak), stamina=VALUES(stamina), last_date=VALUES(last_date), " +
                     "cooldown=VALUES(cooldown), wins=VALUES(wins), battles=VALUES(battles), " +
                     "buy_date=VALUES(buy_date), buys_today=VALUES(buys_today)";
         }
         return "INSERT INTO " + tablePlayers +
-                " (uuid, player_name, length, season_peak, stamina, last_date, cooldown, wins, battles, buy_date, buys_today) " +
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) " +
-                "ON CONFLICT(uuid) DO UPDATE SET player_name=excluded.player_name, length=excluded.length, " +
+                " (uuid, length, season_peak, stamina, last_date, cooldown, wins, battles, buy_date, buys_today) " +
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) " +
+                "ON CONFLICT(uuid) DO UPDATE SET length=excluded.length, " +
                 "season_peak=excluded.season_peak, stamina=excluded.stamina, last_date=excluded.last_date, " +
                 "cooldown=excluded.cooldown, wins=excluded.wins, battles=excluded.battles, " +
                 "buy_date=excluded.buy_date, buys_today=excluded.buys_today";
@@ -204,16 +202,15 @@ public class DatabaseManager {
         try (Connection conn = dataSource.getConnection();
              PreparedStatement ps = conn.prepareStatement(upsertPlayersSql())) {
             ps.setString(1, r.uuid);
-            ps.setString(2, r.name != null ? r.name : "");
-            ps.setDouble(3, r.length);
-            ps.setDouble(4, r.seasonPeak);
-            ps.setInt(5, r.stamina);
-            ps.setString(6, r.lastDate != null ? r.lastDate : "");
-            ps.setLong(7, r.cooldown);
-            ps.setInt(8, r.wins);
-            ps.setInt(9, r.battles);
-            ps.setString(10, r.buyDate != null ? r.buyDate : "");
-            ps.setInt(11, r.buysToday);
+            ps.setDouble(2, r.length);
+            ps.setDouble(3, r.seasonPeak);
+            ps.setInt(4, r.stamina);
+            ps.setString(5, r.lastDate != null ? r.lastDate : "");
+            ps.setLong(6, r.cooldown);
+            ps.setInt(7, r.wins);
+            ps.setInt(8, r.battles);
+            ps.setString(9, r.buyDate != null ? r.buyDate : "");
+            ps.setInt(10, r.buysToday);
             ps.executeUpdate();
         } catch (SQLException e) {
             plugin.getLogger().log(Level.WARNING, "保存玩家失败 (uuid=" + r.uuid + "): " + e.getMessage());
