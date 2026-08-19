@@ -143,40 +143,24 @@ public class CommandHandler implements TabExecutor {
     private void reloadAll() {
         plugin.reloadConfig();
         config.load();
-        dataMgr.loadData();
         lang.load();
-        DatabaseManager db = plugin.getDatabaseManager();
-        if (db != null) db.close();
-        plugin.setUseMysql(plugin.getConfig().getBoolean("mysql.enabled", false));
-        if (plugin.isUseMysql()) {
-            String mysqlHost = plugin.getConfig().getString("mysql.host", "localhost");
-            int mysqlPort = plugin.getConfig().getInt("mysql.port", 3306);
-            String mysqlDatabase = plugin.getConfig().getString("mysql.database", "niuniu");
-            String mysqlUsername = plugin.getConfig().getString("mysql.username", "root");
-            String mysqlPassword = plugin.getConfig().getString("mysql.password", "");
-            DatabaseManager newDb = new DatabaseManager(plugin);
-            plugin.setDatabaseManager(newDb);
-            if (newDb.connect(mysqlHost, mysqlPort, mysqlDatabase, mysqlUsername, mysqlPassword,
-                    config.mysqlTablePrefix, config.mysqlPoolMaxSize, config.mysqlPoolMinIdle)) {
-                dataMgr.loadFromMysql(newDb);
-            } else {
-                plugin.setUseMysql(false);
-            }
+        plugin.getDatabaseManager().close();
+        String sqlitePath = new java.io.File(plugin.getDataFolder(), config.sqliteFile).getAbsolutePath();
+        boolean connected = plugin.getDatabaseManager().connect(
+                config.storageType, sqlitePath,
+                config.mysqlHost, config.mysqlPort, config.mysqlDatabase,
+                config.mysqlUsername, config.mysqlPassword,
+                config.tablePrefix, config.poolMaxSize, config.poolMinIdle);
+        if (!connected) {
+            plugin.getLogger().warning("数据库重连失败。");
+            return;
         }
+        dataMgr.loadAll();
+        seasonMgr.load();
     }
 
     private void handleMigrate(CommandSender sender) {
-        DatabaseManager db = plugin.getDatabaseManager();
-        if (!plugin.isUseMysql() || db == null || !db.isEnabled()) {
-            sender.sendMessage(LangManager.color(lang.prefix() + lang.t("migrate-no-db")));
-            return;
-        }
-        int count = dataMgr.doMigrate(db);
-        if (count >= 0) {
-            sender.sendMessage(LangManager.color(lang.prefix() + "&a数据迁移完成！共迁移 " + count + " 名玩家数据。"));
-        } else {
-            sender.sendMessage(LangManager.color(lang.prefix() + "&c数据迁移失败，请检查数据库连接。"));
-        }
+        sender.sendMessage(LangManager.color(lang.prefix() + "&e数据层已切换为数据库唯一存储，旧 data.yml 不再使用。"));
     }
 
     @Override

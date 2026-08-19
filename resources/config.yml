@@ -56,11 +56,22 @@ settings:
   # 赛季天数（2个月=60天，到期自动进入下一赛季并重置牛牛）
   season-duration-days: 7
 
-# ===== MySQL 数据库配置（可选）=====
-# 启用后数据将存储在 MySQL 中，YAML 作为备份
+# ===== 存储后端（数据库是唯一数据源）=====
+# 玩家数据只存数据库，不再使用 data.yml
+storage:
+  # 后端类型：sqlite（本地单文件，默认） 或 mysql（远程数据库）
+  type: sqlite
+  # SQLite 数据库文件名（位于插件数据目录，type=sqlite 时生效）
+  sqlite-file: 'niuniu.db'
+  # 表名前缀（多服共用同一数据库时使用，如 "survival_" → survival_players / survival_season）
+  table-prefix: 'niuniu_'
+  # 连接池最大连接数
+  pool-max-size: 5
+  # 连接池最小空闲连接数
+  pool-min-idle: 1
+
+# ===== MySQL 连接配置（type=mysql 时生效）=====
 mysql:
-  # 是否启用 MySQL（true=启用，false=仅使用 YAML）
-  enabled: false
   # 数据库地址
   host: localhost
   # 数据库端口
@@ -71,12 +82,7 @@ mysql:
   username: root
   # 密码
   password: ''
-  # 表名前缀（多服共用同一数据库时使用，如 "survival_" → survival_players / survival_season）
-  table-prefix: 'niuniu_'
-  # 连接池最大连接数
-  pool-max-size: 5
-  # 连接池最小空闲连接数
-  pool-min-idle: 1
+
 # 赛季结算 · PlayerTitle 称号联动
 settlement:
   # PlayerTitle 称号权限（{season} 替换为赛季号）

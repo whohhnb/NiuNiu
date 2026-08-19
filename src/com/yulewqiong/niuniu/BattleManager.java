@@ -278,8 +278,8 @@ public class BattleManager {
         }
         dataMgr.spendStamina(a, config.battleCost);
         dataMgr.spendStamina(b, config.battleCost);
-        dataMgr.getData().set(dataMgr.base(a) + ".battles", dataMgr.getBattles(a) + 1);
-        dataMgr.getData().set(dataMgr.base(b) + ".battles", dataMgr.getBattles(b) + 1);
+        dataMgr.addBattleCount(a);
+        dataMgr.addBattleCount(b);
 
         Battle bt = new Battle();
         bt.a = a.getUniqueId();
@@ -476,11 +476,7 @@ public class BattleManager {
         int shrink = config.loseLossMin + ThreadLocalRandom.current().nextInt(config.loseLossMax - config.loseLossMin + 1);
         double wNew = Math.round((wOld + grow) * 10.0) / 10.0;
         double lNew = Math.max(config.minLength, Math.round((lOld - shrink) * 10.0) / 10.0);
-        dataMgr.getData().set(dataMgr.base(winner) + ".length", wNew);
-        dataMgr.getData().set(dataMgr.base(loser) + ".length", lNew);
-        dataMgr.getData().set(dataMgr.base(winner) + ".wins", dataMgr.getWins(winner) + 1);
-        dataMgr.updateSeasonPeak(winner, wNew);
-        dataMgr.markDirty();
+        dataMgr.applyBattleResult(winner, loser, wNew, lNew);
         lang.broadcast("battle-win", "winner", winner.getName(), "loser", loser.getName());
         lang.broadcast("battle-grow", "winner", winner.getName(), "old", dataMgr.fmtLen(wOld), "new", dataMgr.fmtLen(wNew), "grow", String.valueOf(grow));
         lang.broadcast("battle-shrink", "loser", loser.getName(), "old", dataMgr.fmtLen(lOld), "new", dataMgr.fmtLen(lNew), "loss", String.valueOf((int) Math.round((lOld - lNew))));

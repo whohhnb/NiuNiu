@@ -70,10 +70,18 @@ public class ConfigManager {
     String grantCommand;
     String titleDisplay;
 
-    // ===== MySQL =====
-    String mysqlTablePrefix;
-    int mysqlPoolMaxSize;
-    int mysqlPoolMinIdle;
+    // ===== 存储 =====
+    String storageType;      // sqlite / mysql
+    String sqliteFile;       // SQLite 文件名
+    String tablePrefix;
+    int poolMaxSize;
+    int poolMinIdle;
+    // MySQL 连接参数
+    String mysqlHost;
+    int mysqlPort;
+    String mysqlDatabase;
+    String mysqlUsername;
+    String mysqlPassword;
 
     public ConfigManager(NiuNiu plugin) {
         this.plugin = plugin;
@@ -121,9 +129,16 @@ public class ConfigManager {
         grantCommand = c.getString("settlement.grant-command", "plt player add {player} {title} 0");
         titleDisplay = c.getString("settlement.title-display", "&6&l✦ &e&lS{season} 打胶大王 &6&l✦");
 
-        // MySQL
-        mysqlTablePrefix = c.getString("mysql.table-prefix", "");
-        mysqlPoolMaxSize = Math.max(1, c.getInt("mysql.pool-max-size", 5));
-        mysqlPoolMinIdle = Math.max(0, Math.min(mysqlPoolMaxSize, c.getInt("mysql.pool-min-idle", 1)));
+        // 存储
+        storageType = c.getString("storage.type", "sqlite");
+        sqliteFile = c.getString("storage.sqlite-file", "niuniu.db");
+        tablePrefix = c.getString("storage.table-prefix", "niuniu_");
+        poolMaxSize = Math.max(1, c.getInt("storage.pool-max-size", 5));
+        poolMinIdle = Math.max(0, Math.min(poolMaxSize, c.getInt("storage.pool-min-idle", 1)));
+        mysqlHost = c.getString("mysql.host", "localhost");
+        mysqlPort = c.getInt("mysql.port", 3306);
+        mysqlDatabase = c.getString("mysql.database", "niuniu");
+        mysqlUsername = c.getString("mysql.username", "root");
+        mysqlPassword = c.getString("mysql.password", "");
     }
 }

@@ -215,12 +215,9 @@ public class GuiManager {
 
     public void openTop(Player p, int page) {
         Map<String, Double> peaks = new LinkedHashMap<>();
-        if (dataMgr.getData().contains("players")) {
-            for (String key : dataMgr.getData().getConfigurationSection("players").getKeys(false)) {
-                double peak = dataMgr.getData().getDouble("players." + key + ".seasonPeak", 0);
-                if (peak <= 0) continue;
-                peaks.put(key, peak);
-            }
+        for (PlayerRow r : dataMgr.getAllRows()) {
+            if (r == null || r.seasonPeak <= 0) continue;
+            peaks.put(r.uuid, r.seasonPeak);
         }
         List<Map.Entry<String, Double>> sorted = new ArrayList<>(peaks.entrySet());
         sorted.sort(Map.Entry.<String, Double>comparingByValue().reversed());
@@ -250,7 +247,8 @@ public class GuiManager {
             }
             String medal = i == 0 ? "&6&l①" : (i == 1 ? "&7&l②" : (i == 2 ? "&c&l③" : "&f&l" + (i + 1)));
             m.setDisplayName(LangManager.color(medal + " &e" + name));
-            double cur = dataMgr.getData().getDouble("players." + e.getKey() + ".length", 0);
+            PlayerRow row = dataMgr.getByUuid(e.getKey());
+            double cur = row != null ? row.length : 0;
             List<String> lore = new ArrayList<>();
             lore.add("");
             lore.add(LangManager.color("&b赛季最高：&6" + dataMgr.fmtLen(e.getValue()) + "cm"));
@@ -302,14 +300,14 @@ public class GuiManager {
             name = op.getName() == null ? "?" : op.getName();
         } catch (Exception ignored) {
         }
-        String b = "players." + targetUuid;
-        double len = dataMgr.getData().getDouble(b + ".length", 0);
-        double peak = dataMgr.getData().getDouble(b + ".seasonPeak", len);
-        int stam = dataMgr.getData().getInt(b + ".stamina", 0);
-        int wins = dataMgr.getData().getInt(b + ".wins", 0);
-        int battles = dataMgr.getData().getInt(b + ".battles", 0);
-        long cd = dataMgr.getData().getLong(b + ".cooldown", 0);
-        boolean hasData = dataMgr.getData().contains(b);
+        PlayerRow row = dataMgr.getByUuid(targetUuid);
+        boolean hasData = row != null && row.length > 0;
+        double len = hasData ? row.length : 0;
+        double peak = hasData ? (row.seasonPeak > 0 ? row.seasonPeak : row.length) : len;
+        int stam = hasData ? row.stamina : 0;
+        int wins = hasData ? row.wins : 0;
+        int battles = hasData ? row.battles : 0;
+        long cd = hasData ? row.cooldown : 0;
         int cp = dataMgr.getCP(len);
 
         m.setDisplayName(LangManager.color("&6&l" + name + " &e的牛牛"));

@@ -9,9 +9,11 @@ import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitTask;
 
+import java.io.File;
+
 /**
  * NiuNiu 牛牛对战系统 - 主控制器
- * 负责插件生命周期管理、模块初始化与编排。
+ * 负责插件生命周期管理、数据库连接、模块初始化与编排。
  */
 public class NiuNiu extends JavaPlugin {
 
@@ -28,10 +30,9 @@ public class NiuNiu extends JavaPlugin {
     // ===== 外部依赖 =====
     private Economy economy;
     private DatabaseManager databaseManager;
-    private boolean useMysql;
 
     // ===== 定时任务 =====
-    private BukkitTask saveTask;
+    private BukkitTask seasonTask;
     private BukkitTask refreshTask;
 
     // ===== getters =====
@@ -43,23 +44,30 @@ public class NiuNiu extends JavaPlugin {
     public GuiManager getGuiManager() { return guiManager; }
     public Economy getEconomy() { return economy; }
     public DatabaseManager getDatabaseManager() { return databaseManager; }
-    public boolean isUseMysql() { return useMysql; }
-    public void setUseMysql(boolean v) { useMysql = v; }
-    public void setDatabaseManager(DatabaseManager db) { databaseManager = db; }
 
     @Override
     public void onEnable() {
         saveDefaultConfig();
 
-        // 1. 初始化配置与语言
+        // 1. 配置与语言
         configManager = new ConfigManager(this);
         configManager.load();
         langManager = new LangManager(this);
         langManager.load();
 
-        // 2. 初始化数据层
-        playerDataManager = new PlayerDataManager(this, configManager, langManager);
-        playerDataManager.loadData();
+        // 2. 连接数据库（SQLite 默认 / MySQL 可选）；数据库是唯一数据源
+        databaseManager = new DatabaseManager(this);
+        String sqlitePath = new File(getDataFolder(), configManager.sqliteFile).getAbsolutePath();
+        boolean connected = databaseManager.connect(
+                configManager.storageType, sqlitePath,
+                configManager.mysqlHost, configManager.mysqlPort, configManager.mysqlDatabase,
+                configManager.mysqlUsername, configManager.mysqlPassword,
+                configManager.tablePrefix, configManager.poolMaxSize, configManager.poolMinIdle);
+        if (!connected) {
+            getLogger().severe("数据库连接失败，插件无法加载玩家数据，已禁用。");
+            getServer().getPluginManager().disablePlugin(this);
+            return;
+        }
 
         // 3. Vault 经济
         if (Bukkit.getPluginManager().getPlugin("Vault") != null) {
@@ -69,29 +77,16 @@ public class NiuNiu extends JavaPlugin {
         if (economy == null) {
             getLogger().warning("未找到 Vault 经济，购买体力将无法使用。");
         }
+
+        // 4. 数据层：全量加载玩家进内存缓存
+        playerDataManager = new PlayerDataManager(this, configManager, langManager);
         playerDataManager.setEconomy(economy);
+        playerDataManager.loadAll();
+        getLogger().info("已从数据库加载 " + playerDataManager.countPlayers() + " 名玩家。");
 
-        // 4. MySQL 初始化
-        useMysql = getConfig().getBoolean("mysql.enabled", false);
-        if (useMysql) {
-            String mysqlHost = getConfig().getString("mysql.host", "localhost");
-            int mysqlPort = getConfig().getInt("mysql.port", 3306);
-            String mysqlDatabase = getConfig().getString("mysql.database", "niuniu");
-            String mysqlUsername = getConfig().getString("mysql.username", "root");
-            String mysqlPassword = getConfig().getString("mysql.password", "");
-            databaseManager = new DatabaseManager(this);
-            if (databaseManager.connect(mysqlHost, mysqlPort, mysqlDatabase, mysqlUsername, mysqlPassword,
-                    configManager.mysqlTablePrefix, configManager.mysqlPoolMaxSize, configManager.mysqlPoolMinIdle)) {
-                playerDataManager.loadFromMysql(databaseManager);
-                getLogger().info("已从 MySQL 加载数据，共 " + playerDataManager.countPlayers() + " 名玩家。");
-            } else {
-                getLogger().warning("MySQL 连接失败，回退到 YAML 存储。");
-                useMysql = false;
-            }
-        }
-
-        // 5. 初始化业务模块
+        // 5. 业务模块
         seasonManager = new SeasonManager(this, playerDataManager, configManager, langManager);
+        seasonManager.load();
         battleManager = new BattleManager(this, playerDataManager, configManager, langManager);
         guiManager = new GuiManager(this, playerDataManager, configManager, langManager, seasonManager, battleManager);
         commandHandler = new CommandHandler(this, configManager, langManager, playerDataManager, seasonManager, battleManager, guiManager);
@@ -105,14 +100,9 @@ public class NiuNiu extends JavaPlugin {
         // 7. 赛季检查
         seasonManager.advanceSeasonIfNeeded();
 
-        // 8. 定时保存任务
-        saveTask = getServer().getScheduler().runTaskTimer(this, () -> {
-            seasonManager.advanceSeasonIfNeeded();
-            if (playerDataManager.isDirty()) {
-                playerDataManager.saveData();
-                playerDataManager.clearDirty();
-            }
-        }, configManager.saveInterval * 20L, configManager.saveInterval * 20L);
+        // 8. 定时赛季检查
+        seasonTask = getServer().getScheduler().runTaskTimer(this, seasonManager::advanceSeasonIfNeeded,
+                configManager.saveInterval * 20L, configManager.saveInterval * 20L);
 
         // 9. 每秒刷新主菜单冷却倒计时
         String mainTitle = ChatColor.stripColor(LangManager.color("&6&l牛牛对战系统"));
@@ -132,17 +122,14 @@ public class NiuNiu extends JavaPlugin {
             }
         }, 20L, 20L);
 
-        getLogger().info("NiuNiu 牛牛对战系统已启用" + (useMysql ? "（MySQL 模式）" : ""));
+        getLogger().info("NiuNiu 牛牛对战系统已启用（" + databaseManager.getBackend() + " 模式）");
     }
 
     @Override
     public void onDisable() {
         if (refreshTask != null) refreshTask.cancel();
-        if (saveTask != null) saveTask.cancel();
-        if (playerDataManager != null && playerDataManager.isDirty()) {
-            playerDataManager.saveData();
-        }
-        if (useMysql && databaseManager != null) {
+        if (seasonTask != null) seasonTask.cancel();
+        if (databaseManager != null) {
             databaseManager.close();
         }
     }
