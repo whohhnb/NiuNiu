@@ -160,7 +160,14 @@ public class CommandHandler implements TabExecutor {
     }
 
     private void handleMigrate(CommandSender sender) {
-        sender.sendMessage(LangManager.color(lang.prefix() + "&e数据层已切换为数据库唯一存储，旧 data.yml 不再使用。"));
+        int count = dataMgr.migrateFromYaml();
+        if (count == -1) {
+            sender.sendMessage(LangManager.color(lang.prefix() + "&c未找到 data.yml 文件，无需迁移。"));
+        } else if (count == -2) {
+            sender.sendMessage(LangManager.color(lang.prefix() + "&c数据库未连接，无法迁移。"));
+        } else {
+            sender.sendMessage(LangManager.color(lang.prefix() + "&a迁移完成！共迁移 " + count + " 名玩家数据及赛季数据到数据库。"));
+        }
     }
 
     @Override

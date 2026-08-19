@@ -2,8 +2,10 @@ package com.yulewqiong.niuniu;
 
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.Sound;
+import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 
+import java.io.File;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -349,5 +351,59 @@ public class PlayerDataManager {
             l.length = lNew;
             save(l);
         }
+    }
+
+    // ===== 旧 data.yml 迁移 =====
+
+    /**
+     * 从旧 data.yml（YAML 存储时代）迁移玩家与赛季数据到数据库。
+     * 迁移完成后将 data.yml 重命名为 data.yml.migrated 防止重复导入。
+     *
+     * @return 迁移的玩家数量；-1 表示源文件不存在
+     */
+    public int migrateFromYaml() {
+        File file = new File(plugin.getDataFolder(), "data.yml");
+        if (!file.exists()) return -1;
+
+        YamlConfiguration yaml = YamlConfiguration.loadConfiguration(file);
+        DatabaseManager db = plugin.getDatabaseManager();
+        if (db == null || !db.isEnabled()) return -2;
+
+        int count = 0;
+        // 玩家数据
+        if (yaml.contains("players")) {
+            for (String uuid : yaml.getConfigurationSection("players").getKeys(false)) {
+                String b = "players." + uuid;
+                double length = yaml.getDouble(b + ".length", 0);
+                if (length <= 0) continue; // 跳过未激活的幽灵数据
+                PlayerRow r = new PlayerRow();
+                r.uuid = uuid;
+                r.name = yaml.getString(b + ".name", "");
+                r.length = length;
+                r.seasonPeak = yaml.getDouble(b + ".seasonPeak", length);
+                r.stamina = yaml.getInt(b + ".stamina", 0);
+                r.lastDate = yaml.getString(b + ".lastDate", "");
+                r.cooldown = yaml.getLong(b + ".cooldown", 0);
+                r.wins = yaml.getInt(b + ".wins", 0);
+                r.battles = yaml.getInt(b + ".battles", 0);
+                r.buysToday = yaml.getInt(b + ".buysToday", 0);
+                r.buyDate = yaml.getString(b + ".buyDate", "");
+                db.savePlayer(r);
+                cache.put(uuid, r);
+                count++;
+            }
+        }
+        // 赛季数据
+        if (yaml.contains("season")) {
+            for (String key : yaml.getConfigurationSection("season").getKeys(false)) {
+                db.saveSeason(key, yaml.getString("season." + key, ""));
+            }
+        }
+        // 防止下次启动重复导入（仅在成功时重命名）
+        File bak = new File(plugin.getDataFolder(), "data.yml.migrated");
+        if (file.renameTo(bak)) {
+            plugin.getLogger().info("已将 data.yml 重命名为 data.yml.migrated。");
+        }
+        return count;
     }
 }
