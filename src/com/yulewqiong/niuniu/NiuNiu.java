@@ -78,15 +78,9 @@ public class NiuNiu extends JavaPlugin {
             getLogger().warning("未找到 Vault 经济，购买体力将无法使用。");
         }
 
-        // 4. 数据层：若存在旧 data.yml，先自动迁移到数据库，再全量加载
+        // 4. 数据层：全量加载玩家进内存缓存
         playerDataManager = new PlayerDataManager(this, configManager, langManager);
         playerDataManager.setEconomy(economy);
-        int migrated = playerDataManager.migrateFromYaml();
-        if (migrated > 0) {
-            getLogger().info("已自动迁移 " + migrated + " 名玩家数据（旧 data.yml → 数据库）。");
-        } else if (migrated == -1) {
-            getLogger().info("未发现旧 data.yml，跳过迁移。");
-        }
         playerDataManager.loadAll();
         getLogger().info("已从数据库加载 " + playerDataManager.countPlayers() + " 名玩家。");
 

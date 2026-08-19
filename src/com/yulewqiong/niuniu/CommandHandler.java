@@ -160,13 +160,14 @@ public class CommandHandler implements TabExecutor {
     }
 
     private void handleMigrate(CommandSender sender) {
-        int count = dataMgr.migrateFromYaml();
-        if (count == -1) {
-            sender.sendMessage(LangManager.color(lang.prefix() + "&c未找到 data.yml 文件，无需迁移。"));
-        } else if (count == -2) {
-            sender.sendMessage(LangManager.color(lang.prefix() + "&c数据库未连接，无法迁移。"));
+        sender.sendMessage(LangManager.color(lang.prefix() + "&e正在从另一后端迁移数据到当前后端，请稍候..."));
+        int count = dataMgr.migrate();
+        if (count == -2) {
+            sender.sendMessage(LangManager.color(lang.prefix() + "&c当前数据库未连接，无法迁移。"));
+        } else if (count == -1) {
+            sender.sendMessage(LangManager.color(lang.prefix() + "&c源后端连接失败，请检查另一后端的配置。"));
         } else {
-            sender.sendMessage(LangManager.color(lang.prefix() + "&a迁移完成！共迁移 " + count + " 名玩家数据及赛季数据到数据库。"));
+            sender.sendMessage(LangManager.color(lang.prefix() + "&a迁移完成！共迁移 " + count + " 名玩家数据到当前后端。"));
         }
     }
 

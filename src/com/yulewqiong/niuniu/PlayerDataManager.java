@@ -2,13 +2,13 @@ package com.yulewqiong.niuniu;
 
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.Sound;
-import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 
 import java.io.File;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
 
@@ -353,57 +353,50 @@ public class PlayerDataManager {
         }
     }
 
-    // ===== 旧 data.yml 迁移 =====
+    // ===== 后端迁移（CMI migratedatabase 模式）=====
 
     /**
-     * 从旧 data.yml（YAML 存储时代）迁移玩家与赛季数据到数据库。
-     * 迁移完成后将 data.yml 重命名为 data.yml.migrated 防止重复导入。
+     * 将数据从另一后端迁移到当前后端。
+     * 当前后端由 storage.type 决定；调用前需先改配置并重启，使插件连上“目标”后端，
+     * 本方法会连接“源”后端（与当前相反的类型）读取其全部数据并写入当前后端。
      *
-     * @return 迁移的玩家数量；-1 表示源文件不存在
+     * @return 迁移的玩家数量；-1 表示源后端连接失败
      */
-    public int migrateFromYaml() {
-        File file = new File(plugin.getDataFolder(), "data.yml");
-        if (!file.exists()) return -1;
+    public int migrate() {
+        DatabaseManager target = plugin.getDatabaseManager();
+        if (target == null || !target.isEnabled()) return -2;
 
-        YamlConfiguration yaml = YamlConfiguration.loadConfiguration(file);
-        DatabaseManager db = plugin.getDatabaseManager();
-        if (db == null || !db.isEnabled()) return -2;
+        boolean currentMysql = config.storageType != null && config.storageType.equalsIgnoreCase("mysql");
+        String sourceType = currentMysql ? "sqlite" : "mysql";
+        String sqlitePath = new File(plugin.getDataFolder(), config.sqliteFile).getAbsolutePath();
+
+        // 用相反的 type 连接“源”后端
+        DatabaseManager source = new DatabaseManager(plugin);
+        boolean ok = source.connect(sourceType, sqlitePath,
+                config.mysqlHost, config.mysqlPort, config.mysqlDatabase,
+                config.mysqlUsername, config.mysqlPassword,
+                config.tablePrefix, config.poolMaxSize, config.poolMinIdle);
+        if (!ok) {
+            source.close();
+            return -1;
+        }
 
         int count = 0;
-        // 玩家数据
-        if (yaml.contains("players")) {
-            for (String uuid : yaml.getConfigurationSection("players").getKeys(false)) {
-                String b = "players." + uuid;
-                double length = yaml.getDouble(b + ".length", 0);
-                if (length <= 0) continue; // 跳过未激活的幽灵数据
-                PlayerRow r = new PlayerRow();
-                r.uuid = uuid;
-                r.name = yaml.getString(b + ".name", "");
-                r.length = length;
-                r.seasonPeak = yaml.getDouble(b + ".seasonPeak", length);
-                r.stamina = yaml.getInt(b + ".stamina", 0);
-                r.lastDate = yaml.getString(b + ".lastDate", "");
-                r.cooldown = yaml.getLong(b + ".cooldown", 0);
-                r.wins = yaml.getInt(b + ".wins", 0);
-                r.battles = yaml.getInt(b + ".battles", 0);
-                r.buysToday = yaml.getInt(b + ".buysToday", 0);
-                r.buyDate = yaml.getString(b + ".buyDate", "");
-                db.savePlayer(r);
-                cache.put(uuid, r);
-                count++;
-            }
+        // 玩家
+        Map<String, PlayerRow> rows = source.loadAllPlayers();
+        for (PlayerRow r : rows.values()) {
+            if (r.length <= 0) continue;
+            target.savePlayer(r);
+            cache.put(r.uuid, r);
+            count++;
         }
-        // 赛季数据
-        if (yaml.contains("season")) {
-            for (String key : yaml.getConfigurationSection("season").getKeys(false)) {
-                db.saveSeason(key, yaml.getString("season." + key, ""));
-            }
+        // 赛季
+        Map<String, String> season = source.loadSeason();
+        for (Map.Entry<String, String> e : season.entrySet()) {
+            target.saveSeason(e.getKey(), e.getValue());
         }
-        // 防止下次启动重复导入（仅在成功时重命名）
-        File bak = new File(plugin.getDataFolder(), "data.yml.migrated");
-        if (file.renameTo(bak)) {
-            plugin.getLogger().info("已将 data.yml 重命名为 data.yml.migrated。");
-        }
+        source.close();
+        plugin.getLogger().info("后端迁移完成：从 " + sourceType + " 迁移 " + count + " 名玩家至当前后端。");
         return count;
     }
 }
