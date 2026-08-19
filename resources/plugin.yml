@@ -1,5 +1,5 @@
 name: NiuNiu
-version: 1.14.2
+version: 1.14.3
 main: com.yulewqiong.niuniu.NiuNiu
 api-version: '1.21'
 depend: [Vault]
