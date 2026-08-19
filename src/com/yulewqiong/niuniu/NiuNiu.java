@@ -97,6 +97,16 @@ public class NiuNiu extends JavaPlugin {
         getCommand("niu").setExecutor(commandHandler);
         getCommand("niu").setTabCompleter(commandHandler);
 
+        // 6.5 注册 PlaceholderAPI（若存在）
+        if (Bukkit.getPluginManager().getPlugin("PlaceholderAPI") != null) {
+            NiuNiuExpansion expansion = new NiuNiuExpansion(this);
+            if (expansion.register()) {
+                getLogger().info("已注册 PlaceholderAPI 变量扩展。");
+            } else {
+                getLogger().warning("PlaceholderAPI 变量扩展注册失败（identifier 冲突？）。");
+            }
+        }
+
         // 7. 赛季检查
         seasonManager.advanceSeasonIfNeeded();
 

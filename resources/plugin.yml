@@ -3,7 +3,7 @@ version: 1.14.3
 main: com.yulewqiong.niuniu.NiuNiu
 api-version: '1.21'
 depend: [Vault]
-softdepend: [PlayerTitle, PlayerMenu]
+softdepend: [PlayerTitle, PlayerMenu, PlaceholderAPI]
 commands:
   niu:
     description: 牛牛对战系统
@@ -15,4 +15,7 @@ permissions:
     default: op
   niu.bypass.cooldown:
     description: 无视打胶冷却（打胶不进入冷却）
+    default: op
+  niu.setlength:
+    description: 设置玩家长度（/niu setlength）
     default: op

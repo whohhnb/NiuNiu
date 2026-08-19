@@ -38,6 +38,7 @@
 | 插件 | 必需 | 用途 |
 |------|------|------|
 | [Vault](https://www.spigotmc.org/resources/vault.34315/) | ✅ 必须 | 经济系统（购买体力） |
+| [PlaceholderAPI](https://www.spigotmc.org/resources/placeholderapi.6245/) | 可选 | 提供变量（如 `%niu_length%`） |
 | [PlayerTitle](https://www.spigotmc.org/resources/) | 可选 | 赛季冠军授予永久称号 |
 | [PlayerMenu](https://www.spigotmc.org/resources/) | 可选 | 返回服务器主菜单 |
 
@@ -104,6 +105,7 @@ mysql:                   # type: mysql 时生效
 | `/niu accept` / `/niu decline` | 接受 / 拒绝对战邀请 |
 | `/niu skill <1/2/3>` | 对战时选择技能 |
 | `/niu forcebrush [玩家]` | 管理员强制打胶 |
+| `/niu setlength <玩家> <长度> [-p]` | 管理员设置玩家长度（`-p` 同时覆盖赛季最高） |
 | `/niu season start` | 管理员强制开启新赛季 |
 | `/niu migrate` | 迁移数据到另一存储后端 |
 | `/niu reload` | 重载配置 |
@@ -116,6 +118,49 @@ mysql:                   # type: mysql 时生效
 |----------|------|------|
 | `niu.admin` | 管理员（强制打胶 / 开赛季 / 重载 / 迁移） | OP |
 | `niu.bypass.cooldown` | 无视打胶冷却 | OP |
+| `niu.setlength` | 设置玩家长度（/niu setlength） | OP |
+
+---
+
+## 📊 PlaceholderAPI 变量
+
+安装 [PlaceholderAPI](https://www.spigotmc.org/resources/placeholderapi.6245/) 后即可使用以下变量（`niuniu` 与 `niu` 等价）。
+
+### 个人变量
+
+| 变量 | 说明 | 示例 |
+|------|------|------|
+| `%niu_length%` | 当前长度（1 位小数） | `15.6` |
+| `%niu_length_raw%` | 当前长度（原始值） | `15.6` |
+| `%niu_peak%` | 赛季最高长度 | `26.4` |
+| `%niu_stamina%` | 当前体力 | `90` |
+| `%niu_max_stamina%` | 体力上限 | `100` |
+| `%niu_cp%` | 战斗力 | `41` |
+| `%niu_rank%` | 评级（纯文本） | `小牛` |
+| `%niu_rank_color%` | 评级（带颜色码） | `&a小牛` |
+| `%niu_max_hp%` | 最大 HP | `91` |
+| `%niu_wins%` | 胜场 | `3` |
+| `%niu_battles%` | 总场次 | `5` |
+| `%niu_winrate%` | 胜率 | `60%` |
+| `%niu_cooldown%` | 打胶冷却剩余秒数 | `0` |
+| `%niu_buys_today%` | 今日已购次数 | `2` |
+| `%niu_buy_limit%` | 每日限购 | `5` |
+| `%niu_season%` | 当前赛季号 | `2` |
+| `%niu_season_days_left%` | 赛季剩余天数 | `7` |
+| `%niu_has_cow%` | 是否已激活牛牛 | `true` |
+
+### 排行榜变量（全局）
+
+数字可替换为任意名次，按赛季最高长度降序。
+
+| 变量 | 说明 |
+|------|------|
+| `%niu_top_name_1%` | 第 N 名玩家名 |
+| `%niu_top_length_1%` | 第 N 名当前长度 |
+| `%niu_top_peak_1%` | 第 N 名赛季最高 |
+| `%niu_top_wins_1%` | 第 N 名胜场 |
+
+> 离线玩家支持 `length` / `peak` / `wins` / `battles` / `winrate` / `has_cow`，其余变量需在线。
 
 ---
 

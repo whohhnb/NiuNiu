@@ -25,6 +25,8 @@ settings:
   initial-length-min: 5
   initial-length-max: 10
   min-length: 5
+  # 长度上限（/niu setlength 的最大值，防误操作）
+  max-length: 100000
   # 每天购买体力次数上限
   buy-limit-per-day: 5
   # 低于该长度无法被挑战/无法对战（防沙包）

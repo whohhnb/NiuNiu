@@ -43,6 +43,7 @@ public class ConfigManager {
     double initLenMax;
     double minLength;
     double minChallengeLength;
+    double maxLength;
 
     // ===== 战斗力 =====
     double cpMult;
@@ -109,6 +110,7 @@ public class ConfigManager {
         initLenMax = c.getDouble("settings.initial-length-max", 10);
         minLength = c.getDouble("settings.min-length", 5);
         minChallengeLength = c.getDouble("settings.min-challenge-length", 10);
+        maxLength = c.getDouble("settings.max-length", 100000);
         cpMult = c.getDouble("settings.cp-length-multiplier", 2.0);
         cpBase = c.getInt("settings.cp-base", 10);
         hpBase = c.getInt("settings.hp-base", 91);

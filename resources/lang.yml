@@ -70,6 +70,9 @@ messages:
 
   no-cow: '&c你还没有牛牛！&7输入 &e/niu brush &7打一次胶来激活你的牛牛'
   no-cow-target: '&c对方还没有牛牛！'
+  setlength-usage: '&e用法: /niu setlength <玩家> <长度> [-p]'
+  setlength-invalid: '&c长度无效！请输入大于 0、不超过 {max} 的数字'
+  setlength-success: '&a已将 &e{target} &a的牛牛长度设置为 &e{length}cm'
 
 # ----- GUI -----
 gui:

@@ -71,6 +71,41 @@ public class CommandHandler implements TabExecutor {
                 dataMgr.forceBrush(fTarget);
                 lang.sendMsg(p, "brush-forced-admin", "target", fTarget.getName());
                 return true;
+            case "setlength":
+                if (!p.hasPermission("niu.setlength")) {
+                    lang.sendMsg(p, "no-permission");
+                    return true;
+                }
+                if (args.length < 3) {
+                    lang.sendMsg(p, "setlength-usage");
+                    return true;
+                }
+                Player sTarget = Bukkit.getPlayerExact(args[1]);
+                if (sTarget == null) {
+                    lang.sendMsg(p, "player-offline", "name", args[1]);
+                    return true;
+                }
+                double len;
+                try {
+                    len = Double.parseDouble(args[2]);
+                } catch (NumberFormatException ex) {
+                    lang.sendMsg(p, "setlength-invalid");
+                    return true;
+                }
+                // 拦截 NaN / Infinity / 负数 / 超上限
+                if (!Double.isFinite(len) || len <= 0 || len > config.maxLength) {
+                    lang.sendMsg(p, "setlength-invalid", "max", dataMgr.fmtLen(config.maxLength));
+                    return true;
+                }
+                // 可选第 4 参数：-p 强制覆盖赛季最高
+                boolean overridePeak = args.length >= 4 && args[3].equalsIgnoreCase("-p");
+                double rounded = Math.round(len * 10.0) / 10.0;
+                if (!dataMgr.setLength(sTarget, rounded, overridePeak)) {
+                    lang.sendMsg(p, "no-cow-target", "target", sTarget.getName());
+                    return true;
+                }
+                lang.sendMsg(p, "setlength-success", "target", sTarget.getName(), "length", dataMgr.fmtLen(rounded));
+                return true;
             case "buy":
                 dataMgr.doBuy(p);
                 return true;
@@ -175,16 +210,22 @@ public class CommandHandler implements TabExecutor {
     public List<String> onTabComplete(CommandSender sender, Command cmd, String label, String[] args) {
         List<String> out = new ArrayList<>();
         if (args.length == 1) {
-            for (String s : new String[]{"battle", "brush", "forcebrush", "buy", "top", "season", "accept", "decline", "skill", "migrate", "reload"}) {
+            for (String s : new String[]{"battle", "brush", "forcebrush", "setlength", "buy", "top", "season", "accept", "decline", "skill", "migrate", "reload"}) {
                 if (s.startsWith(args[0].toLowerCase())) out.add(s);
             }
-        } else if (args.length == 2 && (args[0].equalsIgnoreCase("forcebrush") || args[0].equalsIgnoreCase("battle"))) {
+        } else if (args.length == 2 && (args[0].equalsIgnoreCase("forcebrush") || args[0].equalsIgnoreCase("battle") || args[0].equalsIgnoreCase("setlength"))) {
             for (Player t : Bukkit.getOnlinePlayers()) {
                 if (t.getName().toLowerCase().startsWith(args[1].toLowerCase())) out.add(t.getName());
             }
         } else if (args.length == 2 && args[0].equalsIgnoreCase("season")) {
             for (String s : new String[]{"start"}) {
                 if (s.startsWith(args[1].toLowerCase())) out.add(s);
+            }
+        } else if (args.length == 3 && args[0].equalsIgnoreCase("setlength")) {
+            out.add("长度");
+        } else if (args.length == 4 && args[0].equalsIgnoreCase("setlength")) {
+            for (String s : new String[]{"-p"}) {
+                if (s.startsWith(args[3].toLowerCase())) out.add(s);
             }
         }
         return out;

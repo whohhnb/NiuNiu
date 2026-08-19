@@ -8,6 +8,7 @@ import java.io.File;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
@@ -80,6 +81,23 @@ public class PlayerDataManager {
     /** 返回所有缓存行的快照（赛季结算/排行榜遍历用） */
     public Collection<PlayerRow> getAllRows() {
         return new ArrayList<>(cache.values());
+    }
+
+    /** 按赛季最高长度降序返回前 n 名（已过滤未激活玩家） */
+    public List<PlayerRow> getTopRows(int n) {
+        List<PlayerRow> list = new ArrayList<>();
+        for (PlayerRow r : cache.values()) {
+            if (r.length > 0) list.add(r);
+        }
+        list.sort((a, b) -> Double.compare(b.seasonPeak, a.seasonPeak));
+        return n >= list.size() ? list : list.subList(0, n);
+    }
+
+    /** 赛季剩余天数 */
+    public long seasonDaysLeft() {
+        long left = (plugin.getSeasonManager().getSeasonStarted()
+                + config.seasonDurationDays * 86400000L - System.currentTimeMillis()) / 86400000L;
+        return Math.max(0, left);
     }
 
     /** 清空内存缓存（赛季更替时调用） */
@@ -197,6 +215,16 @@ public class PlayerDataManager {
             r.seasonPeak = newLen;
             save(r);
         }
+    }
+
+    /** 管理员设置玩家长度，返回 false 表示目标未激活牛牛；overridePeak 为 true 时强制覆盖赛季最高 */
+    public boolean setLength(Player target, double len, boolean overridePeak) {
+        PlayerRow r = row(target);
+        if (r == null || r.length <= 0) return false;
+        r.length = len;
+        if (overridePeak || len > r.seasonPeak) r.seasonPeak = len;
+        save(r);
+        return true;
     }
 
     public int countPlayers() {
